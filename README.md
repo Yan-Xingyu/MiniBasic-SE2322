@@ -1,2 +1,2 @@
 # MiniBasic
- A ADS Project stage1
+ ADS project stage 1
