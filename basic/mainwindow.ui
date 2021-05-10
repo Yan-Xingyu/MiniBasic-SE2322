@@ -60,19 +60,42 @@
      </layout>
     </item>
     <item>
-     <widget class="QLabel" name="label_2">
-      <property name="font">
-       <font>
-        <pointsize>10</pointsize>
-       </font>
-      </property>
-      <property name="text">
-       <string>语句与语法树</string>
-      </property>
-     </widget>
+     <layout class="QHBoxLayout" name="horizontalLayout_4">
+      <item>
+       <widget class="QLabel" name="label_2">
+        <property name="font">
+         <font>
+          <pointsize>10</pointsize>
+         </font>
+        </property>
+        <property name="text">
+         <string>语句与语法树</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="label_5">
+        <property name="font">
+         <font>
+          <pointsize>10</pointsize>
+         </font>
+        </property>
+        <property name="text">
+         <string>当前变量</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </item>
     <item>
-     <widget class="QTextBrowser" name="treeBroswer"/>
+     <layout class="QHBoxLayout" name="horizontalLayout_5">
+      <item>
+       <widget class="QTextBrowser" name="treeBrowser"/>
+      </item>
+      <item>
+       <widget class="QTextBrowser" name="variableBrowser"/>
+      </item>
+     </layout>
     </item>
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout_3">
@@ -99,6 +122,19 @@
         </property>
         <property name="text">
          <string>执行代码</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="debugButton">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>30</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>调试单步</string>
         </property>
        </widget>
       </item>

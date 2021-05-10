@@ -76,9 +76,7 @@ Expression* parser::buildTree(QString raw)
                 operands.push(con);
                 lastState = P_VAR;
                 id="";
-                if(i+1 == raw.length())
-                    break;
-                if(i<raw.length())
+                if(!IS_LETTER(raw[i])&&!IS_DIGIT(raw[i]))
                     i--;
                 continue;
             }
@@ -117,11 +115,12 @@ Expression* parser::buildTree(QString raw)
             }
             op+=raw[i];
             //read**,>=,<=,== operators
-            if((raw[i]=='*' && raw[i+1] =='*')||(raw[i]=='>' && raw[i+1] =='=')||
-               (raw[i]=='<' && raw[i+1] =='=')||(raw[i]=='=' && raw[i+1] =='='))
-            {
-                op+=raw[++i];
-            }
+            if(i+1<raw.length())
+                if((raw[i]=='*' && raw[i+1] =='*')||(raw[i]=='>' && raw[i+1] =='=')||
+                    (raw[i]=='<' && raw[i+1] =='=')||(raw[i]=='=' && raw[i+1] =='='))
+                    {
+                        op+=raw[++i];
+                    }
             //push in if the stack is empty
             if(operators.empty())
             {
@@ -183,6 +182,8 @@ void parser::popOps()
     Expression* right;
     right = (!operands.empty())?operands.pop():nullptr;
     left = (!operands.empty())?operands.pop():nullptr;
+    if(right == nullptr || left == nullptr)
+        throw "error";
     CompoundExp* com = new CompoundExp(top,left,right);
     operands.push(com);
 }

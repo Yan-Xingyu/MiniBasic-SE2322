@@ -3,9 +3,9 @@
 #include "mainwindow.h"
 #include <QInputDialog>
 #include <QMessageBox>
+#include <QTextEdit>
 program::program()
 {
-
 
 }
 
@@ -26,7 +26,8 @@ QString program::giveAllCode() const
 QString program::generateTree()
 {
     QString codeTree="";
-    for(auto k = map.cbegin();k!=map.cend();k++)
+    int line = 0;
+    for(auto k = map.cbegin();k!=map.cend();k++,line++)
     {
         QString str = k.value().join(' ').simplified();
         QStringList tokens=str.split(' ',Qt::SkipEmptyParts);
@@ -37,7 +38,8 @@ QString program::generateTree()
             Expression* tree = parser.buildTree(tokens.join(""));
             if(tree == nullptr)
             {
-                codeTree+=QString::number(k.key())+" Error";
+                codeTree+=QString::number(k.key())+" Error\n";
+                errlines.append(line);
                 continue;
             }
             codeTree+=QString::number(k.key())+" LET "+tree->tranverse(2)+"\n";
@@ -49,7 +51,8 @@ QString program::generateTree()
             Expression* tree = parser.buildTree(tokens.join(""));
             if(tree == nullptr)
             {
-                codeTree+=QString::number(k.key())+" Error";
+                codeTree+=QString::number(k.key())+" Error\n";
+                errlines.append(line);
                 continue;
             }
             codeTree+=QString::number(k.key())+" PRINT\n        "+tree->tranverse(2)+"\n";
@@ -62,7 +65,8 @@ QString program::generateTree()
             Expression* condtree = parser.buildTree(tokens.value(0));
             if(condtree == nullptr)
             {
-                codeTree+=QString::number(k.key())+" Error";
+                codeTree+=QString::number(k.key())+" Error\n";
+                errlines.append(line);
                 continue;
             }
             codeTree+=QString::number(k.key())+" IF THEN\n"+
@@ -76,7 +80,10 @@ QString program::generateTree()
             if(LEGAL_LINENUM(linenum))
                 codeTree+=QString::number(k.key())+" GOTO\n        "+QString::number(linenum)+"\n";
             else
-                codeTree+=QString::number(k.key())+" Error";
+            {
+                codeTree+=QString::number(k.key())+" Error\n";
+                errlines.append(line);
+            }
         }
         else if(firsttoken == QString("END"))
         {
@@ -88,7 +95,10 @@ QString program::generateTree()
             if(tokens.length() == 1)
                 codeTree+=QString::number(k.key())+" INPUT\n        "+tokens.value(0);
             else
-                codeTree+=QString::number(k.key())+" Error";
+            {
+                codeTree+=QString::number(k.key())+" Error\n";
+                errlines.append(line);
+            }
         }
         else if(firsttoken == QString("REM"))
         {
@@ -101,7 +111,8 @@ QString program::generateTree()
         }
         else
         {
-            codeTree+=QString::number(k.key())+" Error";
+            codeTree+=QString::number(k.key())+" Error\n";
+            errlines.append(line);
         }
     }
     return codeTree;
@@ -120,8 +131,13 @@ QMap<int,QStringList>::ConstIterator program::jmpN(int n)
     }
     return tmp;
 }
+
+QList<int> program::getErrorLines() const
+{
+    return errlines;
+}
 //print error information
-void err_print(QString str)
+static void err_print(QString str)
 {
     QMessageBox mesg;
     mesg.warning(NULL,"ERROR",str);
@@ -129,8 +145,7 @@ void err_print(QString str)
 //run the program within the line number
 QString program::runProgram()
 {
-    QString result="",codeTree="";
-    codeTree+=generateTree();
+    QString result="";
     for(auto k = map.cbegin();k!=map.cend();k++)
     {
         QString str = k.value().join(' ').simplified();
@@ -144,7 +159,7 @@ QString program::runProgram()
             if(tree == nullptr)
             {
                 err_print(QString::number(k.key())+" Invalid Expression in line "+QString::number(k.key()));
-                return result+"\n,"+codeTree;
+                return result+"\n";
             }
             else
             {
@@ -163,7 +178,7 @@ QString program::runProgram()
             if(tree == nullptr)
             {
                 err_print(QString::number(k.key())+"Invalid Expression in line "+QString::number(k.key()));
-                return result+"\n,"+codeTree;
+                return result+"\n";
             }
             else
             {
@@ -193,7 +208,7 @@ QString program::runProgram()
                 if(!LEGAL_LINENUM(n))
                 {
                     err_print(QString::number(k.key())+": Invalid line number "+tokens.value(1));
-                    return result+"\n,"+codeTree;
+                    return result+"\n";
                 }
                 if(cond) {
                     /*go to n*/
@@ -201,7 +216,7 @@ QString program::runProgram()
                     if(tmp==map.cend())
                     {
                         err_print(QString::number(k.key())+": Can't find line number "+tokens.value(1));
-                        return result+"\n,"+codeTree;
+                        return result+"\n";
                         //err
                     }
                     else k=tmp;
@@ -218,7 +233,7 @@ QString program::runProgram()
             if(tmp==map.cend())
             {
                 err_print(QString::number(k.key())+": Can't find line number "+tokens.value(1));
-                return result+"\n,"+codeTree;
+                return result+"\n";
                 //err
             }
             else k=tmp;
@@ -244,14 +259,14 @@ QString program::runProgram()
         else
         {
             err_print(QString::number(k.key())+": Invalid command :"+firsttoken);
-            //err
         }
     }
-    return result+","+codeTree;
+    return result;
 }
 //run command without line number
 QString program::runSingleCommand(QString str)
 {
+    if(str.isEmpty())return "";
     QStringList tokens=str.split(' ',Qt::SkipEmptyParts);
     QString firsttoken = tokens.front();
     if(firsttoken==QString("LET"))
@@ -325,7 +340,7 @@ QString program::runSingleCommand(QString str)
     return "";
 }
 //store the code in tokens,implement the erase by typing line number
-QString program::stringProcess(QString &str)
+bool program::stringProcess(QString &str)
 {
     str=str.simplified();
     QStringList tokens=str.split(' ');
@@ -335,17 +350,14 @@ QString program::stringProcess(QString &str)
     {
         //within line number
         tokens.pop_front();
+        // whether delete the line
         if(tokens.empty())
-            map.erase(map.find(linenum));
+            map.remove(linenum);
         else
             map.insert(linenum,tokens);
-        return "WITHLINE";
+        return true;
     }
-    else
-    {
-        //without line number
-        return runSingleCommand(str);
-    }
+    else return false;//without line number
 }
 void program::clear()
 {

@@ -7,7 +7,9 @@
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
-enum state_e{S_NORM,S_LOAD,S_RUN,S_CLEAR,S_HELP,S_QUIT};
+#define GREEN 0
+#define RED 1
+enum state_e{S_NORM,S_LOAD,S_RUN,S_CLEAR,S_HELP,S_DEBUG,S_QUIT};
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -20,10 +22,12 @@ private:
     Ui::MainWindow *ui;
     program pro;
     QMap<int,QString> map;
-private slots:
+    void highLighter(QList<QPair<int, int>>);
+public slots:
         void codeUpdate();
         void resultUpdate();
         void clearWindow();
         void loadProgram();
+        void on_window_textChanged();
 };
 #endif // MAINWINDOW_H
