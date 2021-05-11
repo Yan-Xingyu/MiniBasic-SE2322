@@ -7,8 +7,8 @@
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
-#define GREEN 0
-#define RED 1
+#define GREEN 1
+#define RED 0
 enum state_e{S_NORM,S_LOAD,S_RUN,S_CLEAR,S_HELP,S_DEBUG,S_QUIT};
 class MainWindow : public QMainWindow
 {
@@ -28,6 +28,7 @@ public slots:
         void resultUpdate();
         void clearWindow();
         void loadProgram();
+        void debugHandler();
         void on_window_textChanged();
 };
 #endif // MAINWINDOW_H

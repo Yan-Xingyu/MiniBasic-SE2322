@@ -6,11 +6,15 @@
 #include <QTextEdit>
 program::program()
 {
-
+    debugInfo.debugline = nullptr;
+    debugInfo.errflag = false;
+    debugInfo.ondebug = false;
 }
 
 program::~program()
 {
+    if(debugInfo.debugline != nullptr)
+        delete debugInfo.debugline;
 
 }
 //return all code stored in Map
@@ -21,9 +25,10 @@ QString program::giveAllCode() const
         code+=QString::number((k.key()))+" "+k.value().join(' ')+"\n";
     return code;
 }
+
 #define LEGAL_LINENUM(n)  ((n>0)&&(n<=1000000))
 //build the code Tree of each command
-QString program::generateTree()
+QString program::generateTree(QChar delim)
 {
     QString codeTree="";
     int line = 0;
@@ -38,11 +43,11 @@ QString program::generateTree()
             Expression* tree = parser.buildTree(tokens.join(""));
             if(tree == nullptr)
             {
-                codeTree+=QString::number(k.key())+" Error\n";
+                codeTree+=QString::number(k.key())+" Error"+delim;
                 errlines.append(line);
                 continue;
             }
-            codeTree+=QString::number(k.key())+" LET "+tree->tranverse(2)+"\n";
+            codeTree+=QString::number(k.key())+" LET "+tree->tranverse(2)+delim;
             parser.clear();
         }
         else if(firsttoken == QString("PRINT"))
@@ -51,12 +56,20 @@ QString program::generateTree()
             Expression* tree = parser.buildTree(tokens.join(""));
             if(tree == nullptr)
             {
-                codeTree+=QString::number(k.key())+" Error\n";
+                codeTree+=QString::number(k.key())+" Error"+delim;
                 errlines.append(line);
                 continue;
             }
-            codeTree+=QString::number(k.key())+" PRINT\n        "+tree->tranverse(2)+"\n";
+            codeTree+=QString::number(k.key())+" PRINT\n        "+tree->tranverse(2)+delim;
             parser.clear();
+        }
+        else if(firsttoken == QString("PRINTF"))
+        {
+            tokens.pop_front();
+            QStringList params =tokens.join(' ').split(',');
+            QString first = params[0];
+            params.pop_front();
+            codeTree+=QString::number(k.key())+"PRINTF "+first+"\n"+"\t"+params.join(" ");
         }
         else if(firsttoken == QString("IF"))
         {
@@ -65,12 +78,12 @@ QString program::generateTree()
             Expression* condtree = parser.buildTree(tokens.value(0));
             if(condtree == nullptr)
             {
-                codeTree+=QString::number(k.key())+" Error\n";
+                codeTree+=QString::number(k.key())+" Error"+delim;
                 errlines.append(line);
                 continue;
             }
             codeTree+=QString::number(k.key())+" IF THEN\n"+
-                    condtree->tranverse(2)+"\n          "+tokens.value(1)+"\n";
+                    condtree->tranverse(2)+"\n          "+tokens.value(1)+delim;
             parser.clear();
         }
         else if(firsttoken == QString("GOTO"))
@@ -78,10 +91,10 @@ QString program::generateTree()
             tokens.pop_front();
             int linenum = tokens.join("").simplified().toInt();
             if(LEGAL_LINENUM(linenum))
-                codeTree+=QString::number(k.key())+" GOTO\n        "+QString::number(linenum)+"\n";
+                codeTree+=QString::number(k.key())+" GOTO\n        "+QString::number(linenum)+delim;
             else
             {
-                codeTree+=QString::number(k.key())+" Error\n";
+                codeTree+=QString::number(k.key())+" Error"+delim;
                 errlines.append(line);
             }
         }
@@ -93,17 +106,28 @@ QString program::generateTree()
         {
             tokens.pop_front();
             if(tokens.length() == 1)
-                codeTree+=QString::number(k.key())+" INPUT\n        "+tokens.value(0);
+                codeTree+=QString::number(k.key())+" INPUT\n        "+tokens.value(0)+delim;
             else
             {
-                codeTree+=QString::number(k.key())+" Error\n";
+                codeTree+=QString::number(k.key())+" Error"+delim;
+                errlines.append(line);
+            }
+        }
+        else if(firsttoken ==QString("INPUTS"))
+        {
+            tokens.pop_front();
+            if(tokens.length() == 1)
+                codeTree+=QString::number(k.key())+" INPUTS\n        "+tokens.value(0)+delim;
+            else
+            {
+                codeTree+=QString::number(k.key())+" Error"+delim;
                 errlines.append(line);
             }
         }
         else if(firsttoken == QString("REM"))
         {
             tokens.pop_front();
-            codeTree+= QString::number(k.key())+" REM\n        "+tokens.join(' ')+"\n";
+            codeTree+= QString::number(k.key())+" REM\n        "+tokens.join(' ')+delim;
         }
         else if(firsttoken == QString("LIST"))
         {
@@ -111,12 +135,13 @@ QString program::generateTree()
         }
         else
         {
-            codeTree+=QString::number(k.key())+" Error\n";
+            codeTree+=QString::number(k.key())+" Error"+delim;
             errlines.append(line);
         }
     }
     return codeTree;
 }
+
 //move to line numberd n
 QMap<int,QStringList>::ConstIterator program::jmpN(int n)
 {
@@ -132,15 +157,65 @@ QMap<int,QStringList>::ConstIterator program::jmpN(int n)
     return tmp;
 }
 
+//return err lines
 QList<int> program::getErrorLines() const
 {
     return errlines;
 }
-//print error information
-static void err_print(QString str)
+//get all variables
+QString program::getVariables() const
 {
-    QMessageBox mesg;
-    mesg.warning(NULL,"ERROR",str);
+    return symbol.showAllVariables();
+}
+//print error information
+void program::err_print(QString str)
+{
+    if(debugInfo.ondebug)
+    {
+        debugInfo.errflag = true;
+    }
+    else
+    {
+        QMessageBox mesg;
+        mesg.warning(NULL,"ERROR",str);
+    }
+}
+#define IS_QUOTE(s) (s=='\''||s=='\"')
+QString program::printfHandler(QStringList tokens)
+{
+    tokens.pop_front();
+    QStringList params=tokens.join(" ").split(',');
+    QString output = params.value(0).replace(QString("\'"),QString("")).replace(QString("\""),QString(""));
+    params.pop_front();
+    int len=params.length();
+    for(int i=0;i<len;i++)
+    {
+        if(IS_QUOTE(params[i][0])&&IS_QUOTE(params[i][params[i].length()-1]))
+        {
+            params[i]=params[i].replace('\'',"");
+            params[i]=params[i].replace('\"',"");
+        }
+
+        else if(symbol.contains(params[i]))
+        {
+            QVariant tmp = symbol.getvalue(params[i]);
+            if(strcmp(tmp.typeName(),"int"))
+                params[i] = tmp.toString();
+            else
+                params[i] = QString::number(tmp.toInt());
+        }
+       else
+           throw "invalid parameter"+params[i];
+    }
+    QStringList tmp = output.split('}');
+    for(int i=0;i<tmp.length();i++)
+    {
+        if(tmp[i].count('{')!=1&&tmp[i]!="")
+            throw "Invalid format!";
+        if(tmp[i]!="")
+            tmp[i]=tmp[i].replace(QString("{"),params.value(i));
+    }
+    return tmp.join("");
 }
 //run the program within the line number
 QString program::runProgram()
@@ -183,13 +258,30 @@ QString program::runProgram()
             else
             {
                 try {
-                    result += QString::number(tree->getValue(symbol))+"\n";
+                    QVariant tmp= tree->getValue(symbol);
+                    if(!strcmp(tmp.typeName(),"QString"))
+                        result+=tmp.toString()+"\n";
+                    else
+                        result += QString::number(tmp.toInt())+"\n";
                 }  catch (QString e) {
                     err_print(QString::number(k.key())+" "+e);
                 }
             }
 
             parser.clear();
+        }
+        else if(firsttoken == QString("PRINTF"))
+        {
+            try {
+                result+=printfHandler(tokens)+"\n";
+            }  catch (QString e) {
+                err_print(QString::number(k.key())+" "+e);
+            }
+            catch(char const* e )
+            {
+                err_print(QString::number(k.key())+" "+e);
+            }
+
         }
         else if(firsttoken == QString("IF"))
         {
@@ -200,7 +292,10 @@ QString program::runProgram()
             {
                 int cond;
                 try {
-                    cond = condtree->getValue(symbol);
+                    QVariant tmp= condtree->getValue(symbol);
+                    if(!strcmp(tmp.typeName(),"QString"))
+                        err_print("invalid int number");
+                    cond = tmp.toInt();
                 }  catch (QString e) {
                     err_print(QString::number(k.key())+" "+e);
                 }
@@ -244,8 +339,23 @@ QString program::runProgram()
         }
         else if(firsttoken == QString("INPUT")){
             tokens.pop_back();
-            int var = QInputDialog::getInt(NULL,"INPUT","Input "+tokens.value(0),0,-2147483647,2147483647,1);
-            symbol.addVar(tokens.value(0),var);
+            bool ok;
+            int var = QInputDialog::getInt(NULL,"INPUT","Input "+tokens.value(0),0,-2147483647,2147483647,1,&ok);
+            if(ok)
+                symbol.addVar(tokens.value(0),var);
+            else
+                err_print(QString::number(k.key())+"No Valid Input.");
+        }
+        else if(firsttoken == QString("INPUTS"))
+        {
+            tokens.pop_back();
+            bool ok;
+            QString var = QInputDialog::getText(NULL,"INPUT","Input "+tokens.value(0),QLineEdit::Normal,
+                                                NULL,&ok);
+            if(ok)
+                symbol.addVar(tokens.value(0),var);
+            else
+                err_print(QString::number(k.key())+"No Valid Input.");
         }
         else if(firsttoken == QString("REM"))
         {
@@ -263,6 +373,7 @@ QString program::runProgram()
     }
     return result;
 }
+
 //run command without line number
 QString program::runSingleCommand(QString str)
 {
@@ -300,17 +411,48 @@ QString program::runSingleCommand(QString str)
         else
         {
             try {
-                return QString::number(tree->getValue(symbol))+"\n";
+                QVariant tmp= tree->getValue(symbol);
+                if(!strcmp(tmp.typeName(),"QString"))
+                   return tmp.toString()+"\n";
+                else
+                   return QString::number(tmp.toInt())+"\n";
             }  catch (QString e) {
                 err_print(e);
             }
         }
         parser.clear();
     }
+    else if(firsttoken == QString("PRINTF"))
+    {
+        try {
+            return printfHandler(tokens)+"\n";
+        }  catch (QString e) {
+            err_print(e);
+        }
+        catch(char const* e )
+        {
+            err_print(e);
+        }
+    }
     else if(firsttoken == QString("INPUT")){
         tokens.pop_back();
-        int var = QInputDialog::getInt(NULL,"INPUT","Input "+tokens.value(0),0,-2147483647,2147483647,1);
-        symbol.addVar(tokens.value(0),var);
+        bool ok;
+        int var = QInputDialog::getInt(NULL,"INPUT","Input "+tokens.value(0),0,-2147483647,2147483647,1,&ok);
+        if(ok)
+            symbol.addVar(tokens.value(0),var);
+        else
+            err_print("No Valid Input.");
+    }
+    else if(firsttoken == QString("INPUTS"))
+    {
+        tokens.pop_back();
+        bool ok;
+        QString var = QInputDialog::getText(NULL,"INPUT","Input "+tokens.value(0),QLineEdit::Normal,
+                                            NULL,&ok);
+        if(ok)
+            symbol.addVar(tokens.value(0),var);
+        else
+            err_print("No Valid Input.");
     }
     else if(firsttoken==QString("RUN"))
     {
@@ -339,6 +481,7 @@ QString program::runSingleCommand(QString str)
     }
     return "";
 }
+
 //store the code in tokens,implement the erase by typing line number
 bool program::stringProcess(QString &str)
 {

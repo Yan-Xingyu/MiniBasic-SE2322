@@ -8,7 +8,7 @@ public:
     Expression();
     virtual ~Expression();
     virtual expType_e type()const=0 ;
-    virtual int getValue(evalstate&)=0;
+    virtual QVariant getValue(evalstate&)=0;
     virtual QString getName()=0;
     virtual QString tranverse(int)=0;
 };
@@ -17,13 +17,14 @@ class ConstantExp : public Expression
 {
 public:
     ConstantExp(int val);
+    ConstantExp(QString str);
     ~ConstantExp();
     expType_e type() const;
-    int getValue(evalstate&);
+    QVariant getValue(evalstate&);
     virtual QString getName();
     QString tranverse(int);
 private:
-    int value;
+    QVariant value;
 };
 
 class IdentifierExp : public Expression
@@ -32,7 +33,7 @@ public:
     IdentifierExp(QString name);
     ~IdentifierExp();
     expType_e type() const;
-    int getValue(evalstate &);
+    QVariant getValue(evalstate &);
     QString getName();
     QString tranverse(int);
 private:
@@ -45,7 +46,7 @@ public:
     CompoundExp(QString op,Expression* lhs,Expression* rhs);
     ~CompoundExp();
     expType_e type() const;
-    int getValue(evalstate&);
+    QVariant getValue(evalstate&);
     virtual QString getName();
     QString tranverse(int);
     Expression *getLHS();

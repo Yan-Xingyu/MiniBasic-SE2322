@@ -13,6 +13,10 @@ ConstantExp::ConstantExp(int num)
 {
     this->value =num;
 }
+ConstantExp::ConstantExp(QString str)
+{
+    this->value = str;
+}
 ConstantExp::~ConstantExp()
 {
 
@@ -21,18 +25,20 @@ expType_e ConstantExp::type() const
 {
     return CONST;
 }
-int ConstantExp::getValue(evalstate &)
+QVariant ConstantExp::getValue(evalstate &)
 {
     return this->value;
 }
 QString ConstantExp::getName()
 {
-    return QString::number(value);
+    return strcmp(value.typeName(),"int")?value.toString():QString::number(value.toInt());
 }
 QString ConstantExp::tranverse(int)
 {
     return getName();
 }
+
+
 IdentifierExp::IdentifierExp(QString name)
 {
     this->name = name;
@@ -45,7 +51,7 @@ expType_e IdentifierExp::type() const
 {
     return ID;
 }
-int IdentifierExp::getValue(evalstate &var)
+QVariant IdentifierExp::getValue(evalstate &var)
 {
     if(!var.contains(name))
         throw "Invalid Variable:"+name+" !";
@@ -59,6 +65,8 @@ QString IdentifierExp::tranverse(int)
 {
     return getName();
 }
+
+
 CompoundExp::CompoundExp(QString op,Expression* lhs,Expression* rhs)
 {
     this->op = op;
@@ -91,9 +99,9 @@ int pow(int a,int b)
         }
         return ans;
 }
-int CompoundExp::getValue(evalstate & val)
+QVariant CompoundExp::getValue(evalstate & val)
 {
-    int left,right;
+    QVariant left,right;
     if(rhs == nullptr)
     {
         //err
@@ -112,22 +120,27 @@ int CompoundExp::getValue(evalstate & val)
         //err
     }
     left = lhs->getValue(val);
-    if(op == "+")return left+right;
-    if(op == "-")return left-right;
-    if(op == "*")return left*right;
+    if(strcmp(left.typeName(),"int")||strcmp(right.typeName(),"int"))
+    {
+        throw "Invalid Expression";
+    }
+    int leftVal=left.toInt(),rightVal=right.toInt();
+    if(op == "+")return leftVal+rightVal;
+    if(op == "-")return leftVal-rightVal;
+    if(op == "*")return leftVal*rightVal;
     if(op == "/")
     {
-        if(right == 0)
+        if(rightVal == 0)
         {
             throw "Can't divide by zero";
             //err
         }
-        return left/right;
+        return leftVal/rightVal;
     }
-    if(op == "**")return pow(left,right);
-    if(op == "<")return int(left<right);
-    if(op == ">")return int(left>right);
-    if(op == "==")return int(left==right);
+    if(op == "**")return pow(leftVal,rightVal);
+    if(op == "<")return int(leftVal<rightVal);
+    if(op == ">")return int(leftVal>rightVal);
+    if(op == "==")return int(leftVal==rightVal);
     return 0;
 }
 QString CompoundExp::getName()

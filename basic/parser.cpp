@@ -13,11 +13,11 @@ parser::~parser()
 #define IS_LETTER(s) (((s)>='a' && (s)<='z') || ((s)>='A' && (s)<='Z'))
 #define IS_OPERATOR(s) ((s)=='+' || (s)=='-' || (s)=='*' || (s)=='/' \
 ||(s)=='='||(s)=='>'||(s)=='<')
-#define IS_END(s) (*(s)=='\0')
-
+#define IS_QUOTE(s) ((s)=='\'' || (s)=='\"')
+#define IS_BRACK(s) ((s)=='('||(s)==')')
+#define IS_LEGAL_LETTER(s) (IS_DIGIT(s)||IS_LETTER(s)||IS_OPERATOR(s)||IS_QUOTE(s)||IS_BRACK(s))
 Expression* parser::buildTree(QString raw)
 {
-
     QString id="";
     QString num="";
     QString op="";
@@ -26,6 +26,8 @@ Expression* parser::buildTree(QString raw)
     {
         if(raw[i]==' ')
             continue;
+        if(!IS_LEGAL_LETTER(raw[i]))
+            return nullptr;
         //process the constant number
         while(IS_NUM(raw[i]))
         {
@@ -102,8 +104,8 @@ Expression* parser::buildTree(QString raw)
                     return nullptr;
                 }
             }
-
             operators.pop();
+            continue;
         }
         //process the operators
         if(IS_OPERATOR(raw[i]))
@@ -155,11 +157,26 @@ Expression* parser::buildTree(QString raw)
                     topp = getPrecedence(operators.top());
                 }
                 operators.push(op);
+                lastState = P_OPS;
                 op = "";
             }
         }
+        if(IS_QUOTE(raw[i]))
+        {
+            int j = i+1,len=raw.length();
+            QString str="";
+            while(j<len)
+            {
+                if(IS_QUOTE(raw[j])&&j+1!=len)
+                    return nullptr;
+                str+=raw[j++];
+            }
+            ConstantExp* con=new ConstantExp(str);
+            operands.push(con);
+            break;
+        }
     }
-    //pop untile stack is empty
+    //pop until stack is empty
     while(!operators.empty())
     {
         try {

@@ -21,6 +21,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->loadButton,SIGNAL(clicked()),this,SLOT(loadProgram()));
     connect(ui->runButton,SIGNAL(clicked()),this,SLOT(resultUpdate()));
     connect(ui->clearButton,SIGNAL(clicked()),this,SLOT(clearWindow()));
+    connect(ui->debugButton,SIGNAL(clicked()),this,SLOT(debugHandler()));
 
     connect(ui->codeBrowser,SIGNAL(textChanged()),this,SLOT(on_window_textChanged()));
     connect(ui->treeBrowser,SIGNAL(textChanged()),this,SLOT(on_window_textChanged()));
@@ -76,6 +77,7 @@ the left window,result in the right window.");
         }
         state = S_NORM;
     }
+
     ui->cmd->clear();
 }
 void MainWindow::highLighter(QList<QPair<int, int>> highlights)
@@ -100,16 +102,18 @@ void MainWindow::highLighter(QList<QPair<int, int>> highlights)
 }
 void MainWindow::resultUpdate()
 {
-    //get result and tree
+    //get result and tree and variables
     QString Tree=pro.generateTree();
     QString Result=pro.runProgram();
+    QString Variables=pro.getVariables();
     //highlighter
     QList<int> errlines = pro.getErrorLines();
     QList<QPair<int,int>> highlights;
     for(int errline : errlines)
-        highlights.append(QPair<int,int>(errline,GREEN));
+        highlights.append(QPair<int,int>(errline,RED));
     highLighter(highlights);
     //update the window
+    ui->variableBrowser->setText(Variables);
     ui->resultBrowser->setText(Result);
     ui->treeBrowser->setText(Tree);
 }
@@ -143,6 +147,77 @@ void MainWindow::loadProgram()
         }
         //update the window
         ui->codeBrowser->append(pro.giveAllCode());
+}
+void MainWindow::debugHandler()
+{
+    static int linenum = -1;
+    static QList<QPair<int,int>> highlights;
+    static QString tree;
+    if(pro.map.isEmpty())
+    {
+        QMessageBox::warning(NULL,"ERROR!","No code here.");
+        return;
+    }
+    if(linenum == -1)//每次刚进入debug模式
+    {
+        //清理之前的除代码外状态
+        pro.symbol.clear();
+        pro.errlines.clear();
+        ui->resultBrowser->clear();
+        ui->treeBrowser->clear();
+        ui->variableBrowser->clear();
+        //关闭两按钮
+        ui->loadButton->setEnabled(false);
+        ui->clearButton->setEnabled(false);
+        //debug信息初始化
+        pro.debugInfo.debugline = new QMap<int,QStringList>::ConstIterator(pro.map.cbegin());
+        pro.debugInfo.ondebug = true;
+        //获取所有代码树，以及错误行
+        tree=pro.generateTree(',');
+        QList<int> errlines = pro.getErrorLines();
+        for(int errline : errlines)
+            highlights.append(QPair<int,int>(errline,RED));
+    }
+    else//debug模式运行中
+    {
+        QString result,codetree,var;
+        //获取信息
+        result=pro.runSingleCommand(pro.debugInfo.debugline->value().join(' ').simplified());
+        codetree=tree.split(',').value(linenum);
+        var=pro.getVariables();
+
+        linenum++;
+        //更新窗口
+        ui->resultBrowser->append(result);
+        ui->treeBrowser->setText(codetree);
+        ui->variableBrowser->setText(var);
+    }
+    //高亮
+    highlights.append(QPair<int,int>(linenum,GREEN));
+    highLighter(highlights);
+    highlights.pop_back();
+    //正常退出或出现error
+    if(*pro.debugInfo.debugline == pro.map.cend()||pro.debugInfo.errflag)
+    {
+        linenum = -1;
+        tree="";
+        highlights.clear();
+        highLighter(highlights);
+        delete pro.debugInfo.debugline;
+        pro.debugInfo.ondebug = false;
+        pro.debugInfo.errflag = false;
+        if(pro.debugInfo.errflag)
+            QMessageBox::warning(NULL,"ERROR!","Occurs a wrong statement.");
+        else
+            QMessageBox::information(NULL,"Good!","Your program exited normally.");
+        ui->loadButton->setEnabled(true);
+        ui->clearButton->setEnabled(true);
+        return;
+    }
+    if(linenum == -1)
+        linenum = 0;
+    else
+        (*pro.debugInfo.debugline)++;
 }
 void MainWindow::on_window_textChanged()
 {
