@@ -171,6 +171,9 @@ Expression* parser::buildTree(QString raw)
                     return nullptr;
                 str+=raw[j++];
             }
+            if(raw[i]!=raw[j-1])
+                return nullptr;
+            str= str.left(str.length()-1);
             ConstantExp* con=new ConstantExp(str);
             operands.push(con);
             break;

@@ -28,7 +28,8 @@ public slots:
         void resultUpdate();
         void clearWindow();
         void loadProgram();
+
         void debugHandler();
-        void on_window_textChanged();
+        void allWindowFocus();
 };
 #endif // MAINWINDOW_H

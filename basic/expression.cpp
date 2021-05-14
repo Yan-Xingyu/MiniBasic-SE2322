@@ -141,11 +141,12 @@ QVariant CompoundExp::getValue(evalstate & val)
     if(op == "<")return int(leftVal<rightVal);
     if(op == ">")return int(leftVal>rightVal);
     if(op == "==")return int(leftVal==rightVal);
+    if(op == "=")return int(leftVal==rightVal);
     return 0;
 }
 QString CompoundExp::getName()
 {
-    return op;
+    return "Comp";
 }
 #define IS_BOOLOPS(s) ((s)==">"||(s)== "<"||(s)=="<="||(s)==">="||(s)=="==")
 //return the Syntax Tree
@@ -159,7 +160,10 @@ QString CompoundExp::tranverse(int dep=0)
         res+=lhs->tranverse(dep+1)+"\n";
         for(int i=-1;i<dep;i++)
             res+="    ";
-        res+=op+"\n";
+        if(op == "==")
+            res+="=\n";
+        else
+            res+=op+"\n";
         for(int i=-1;i<dep;i++)
             res+="    ";
         res+=rhs->tranverse(dep+1);
