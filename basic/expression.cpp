@@ -132,7 +132,7 @@ QVariant CompoundExp::getValue(evalstate & val)
     {
         if(rightVal == 0)
         {
-            throw "Can't divide by zero";
+            throw QString("Can't divide by zero");
             //err
         }
         return leftVal/rightVal;
